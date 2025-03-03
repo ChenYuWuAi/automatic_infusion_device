@@ -23,7 +23,7 @@ BOM清单：
 | 树莓派5 8G                                    | 1    |
 | 自制步进电机驱动/蜂鸣器告警/NFC载板综合开发板 | 1    |
 | 微雪树莓派5 UPS(E) with 21700                 | 1    |
-| HDMI 1024x1080 显示                               | 1    |
+| HDMI 1024x1080 显示                           | 1    |
 | NFC模块 PN532                                 | 1    |
 | 4K摄像头                                      | 1    |
 | 高精度蠕动输液泵+步进电机                     | 1    |
@@ -63,6 +63,25 @@ graph TD
     - 三极管`NPN`驱动，连接到树莓派PWM GPIO
     - 参考供应商编号：`C94599`
   ![1740986593974](image/system_topology/1740986593974.png)
+  - RPI Pinout:
+  | Pin | Name    | Description         |
+  | --- | ------- | ------------------- |
+  | 1   | 3.3V    | 3.3V Power          |
+  | 2   | 5V      | 5V Power            |
+  | 3   | SDA     | GPIO 2 BMS I2C SDA  |
+  | 4   | 5V      | 5V Power            |
+  | 5   | SCL     | GPIO 3 BMS I2C SCL  |
+  | 6   | GND     | Ground              |
+  | 9   | GND     | Ground              |
+  | 36  | GPIO 16 | GPIO 16 细分控制I   |
+  | 11  | GPIO 17 | GPIO 17 细分控制II  |
+  | 38  | GPIO 20 | GPIO 20 细分控制III |
+  | 35  | GPIO 19 | GPIO 19 步进PWM     |
+  | 32  | GPIO 12 | GPIO 12 使能        |
+  | 8   | TXD     | UART TX PN532 RX    |
+  | 10  | RXD     | UART RX PN532 TX    |
+  | 33  | GPIO 13 | GPIO 13 蜂鸣器PWM   |
+    
 - 注意：
   - UART TX和RX需要交叉
   - UART 电平转换（专用芯片） 树莓派3.3V，PN532 5V
