@@ -40,7 +40,6 @@ graph TD
     A -->|I2C & 5V| F[UPS]
     B -->|两相步进电机| G[蠕动泵]
     I[5V In 升压] -->|16V Out| B
-
 ```
 
 ## 2. Workflow
