@@ -54,7 +54,7 @@ graph TD
 - 输入：
   - DRV8825：电机转向、步进、使能、细分选择
     - 电机端子：XH2.54-4P
-    - KF129
+    - 电机电源端子：(+-)KF129
   - PN532：UART通信 
     - 端子：GH1.25-4P
   ![1740984386245](image/system_topology/1740984386245.png)
@@ -63,7 +63,7 @@ graph TD
     - 三极管`NPN`驱动，连接到树莓派PWM GPIO
     - 参考供应商编号：`C94599`
   ![1740986593974](image/system_topology/1740986593974.png)
-  - RPI Pinout:
+  - RPI Pinout: [树莓派5 GPIO插座](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#gpio)
   | Pin | Name    | Description         |
   | --- | ------- | ------------------- |
   | 1   | 3.3V    | 3.3V Power          |
@@ -77,7 +77,7 @@ graph TD
   | 11  | GPIO 17 | GPIO 17 细分控制II  |
   | 38  | GPIO 20 | GPIO 20 细分控制III |
   | 35  | GPIO 19 | GPIO 19 步进PWM     |
-  | 32  | GPIO 12 | GPIO 12 使能        |
+  | 32  | GPIO 12 | GPIO 12 步进使能    |
   | 8   | TXD     | UART TX PN532 RX    |
   | 10  | RXD     | UART RX PN532 TX    |
   | 33  | GPIO 13 | GPIO 13 蜂鸣器PWM   |
