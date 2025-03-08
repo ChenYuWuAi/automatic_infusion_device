@@ -64,6 +64,7 @@ graph TD
     - 参考供应商编号：`C94599`
   ![1740986593974](image/system_topology/1740986593974.png)
   - RPI Pinout: [树莓派5 GPIO插座](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#gpio)
+  
   | Pin | Name    | Description         |
   | --- | ------- | ------------------- |
   | 1   | 3.3V    | 3.3V Power          |
@@ -81,6 +82,7 @@ graph TD
   | 8   | TXD     | UART TX PN532 RX    |
   | 10  | RXD     | UART RX PN532 TX    |
   | 33  | GPIO 13 | GPIO 13 蜂鸣器PWM   |
+  | 12  | GPIO 18 | GPIO 18 温度控制    |
     
 - 注意：
   - UART TX和RX需要交叉
@@ -90,3 +92,7 @@ graph TD
   排针间距：2.54mm
   ![1740984646370](image/system_topology/1740984646370.png)
   ![1740984670529](image/system_topology/1740984670529.png)
+
+### 2. 软件开发
+#### 目的和工作拆分
+- 目的：实现智能输液器的控制逻辑，包括启停控制、恒流量控制、液量显示、报警功能。同时实现NFC认证和物联网访问功能。还需要基于`OpenCV`实现液位估算。
