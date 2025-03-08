@@ -82,7 +82,7 @@ graph TD
   | 8   | TXD     | UART TX PN532 RX    |
   | 10  | RXD     | UART RX PN532 TX    |
   | 33  | GPIO 13 | GPIO 13 蜂鸣器PWM   |
-  | 12  | GPIO 18 | GPIO 18 温度控制    |
+  | 12  | GPIO 18 | GPIO 18 温度控制PWM |
     
 - 注意：
   - UART TX和RX需要交叉
