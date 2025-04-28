@@ -1,0 +1,16 @@
+{
+    "auto-infusion-01": {
+        "rpm_flow_calibrated": [],
+        "rpm_flow_points": [
+            {
+                "flow_rate": 745.34,
+                "rpm": 60.0
+            },
+            {
+                "flow_rate": 78.26,
+                "rpm": 6.0
+            }
+        ],
+        "target_flow_rate_offset": 0.0
+    }
+}

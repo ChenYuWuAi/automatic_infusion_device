@@ -89,7 +89,7 @@ void PumpDatabase::loadFromJson(const json &j)
         // 加载转速-流量数据
         for (const auto &point : pump_data["rpm_flow_points"])
         {
-            pd.rpm_flow_points.emplace_back(point["rpm"].get<int>(),
+            pd.rpm_flow_points.emplace_back(point["rpm"].get<double>(),
                                             point["flow_rate"].get<double>());
         }
 
