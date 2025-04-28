@@ -177,7 +177,7 @@ int main()
         client.subscribe("v1/devices/me/attributes/response/+", 1);
 
         std::cout << "Subscribed to RPC request topic!" << std::endl;
-        // std::thread songThread(play_song_thread, beep_fd, buzzer_if_i_could_be_a_constelletion, sizeof(buzzer_if_i_could_be_a_constelletion) / sizeof(note_t), std::ref(beep_stop));
+        // std::thread songThread(play_song_thread, beep_fd, buzzer_winxp, sizeof(buzzer_winxp) / sizeof(note_t), std::ref(beep_stop));
         // songThread.detach();
 
         // 请求同步泵的属性
