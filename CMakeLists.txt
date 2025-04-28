@@ -14,13 +14,13 @@ set (EXECUTABLES
 )
 
 include_directories(include)
-
+add_subdirectory(thirdparty)
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c")
 
 
 ## Build the example apps
 add_executable(auto-infusion ${SOURCES})
-target_link_libraries(auto-infusion PahoMqttCpp::paho-mqttpp3 gpiod)
+target_link_libraries(auto-infusion PahoMqttCpp::paho-mqttpp3 gpiod nlohmann_json::nlohmann_json)
 
 set_target_properties(auto-infusion PROPERTIES
     CXX_STANDARD 17
