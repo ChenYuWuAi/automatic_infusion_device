@@ -8,6 +8,8 @@
 #include <signal.h>
 #include <rpc.hpp>
 #include <pump_common.hpp>
+#include <opencv2/opencv.hpp>
+#include "liquid_test.hpp"
 
 #include <memory>
 
@@ -74,6 +76,32 @@ std::string rpc_startPumpState_fn(const json &params)
     response_json["result"] = "ok";
     return response_json.dump();
 }
+
+std::string rpc_detectLiquid_fn(const json &params)   //添加
+{
+    std::string imagePath = params.value("image_path", "");
+    if (imagePath.empty()) {
+        return R"({"error": "No image path provided"})";
+    }
+
+    cv::Mat image = cv::imread(imagePath, cv::IMREAD_COLOR);
+    if (image.empty()) {
+        return R"({"error": "Image load failed"})";
+    }
+
+    double percentage = detectLiquidLevelPercentage(image);
+    if (percentage < 0) {
+        return R"({"error": "Liquid detection failed"})";
+    }
+
+    json response;
+    response["percentage"] = percentage;
+    response["result"] = "ok";
+    return response.dump();
+}
+
+// 添加注册新的 RPC 方法
+static FunctionRegisterer reg_detectLiquid("detectLiquidLevel", rpc_detectLiquid_fn);
 
 static FunctionRegisterer reg_add("getPowerState", add1_fn);
 static FunctionRegisterer reg_knobValue("getKnobValue", add2_fn);
