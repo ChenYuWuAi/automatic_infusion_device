@@ -9,6 +9,13 @@ static note_t buzzer_winxp[] = { // DS5 DS4 AS4 GS4 DS5 AS4
     {NOTE_AS5, 800},
     {0, 200}};
 
+static note_t buzzer_win10_plugin[] = {
+    {523, 272},
+    {440, 136},
+    {349, 136},
+    {659, 272},
+};
+
 static note_t buzzer_if_i_could_be_a_constelletion[] = {
     // {0, 375},
     // {830, 473},

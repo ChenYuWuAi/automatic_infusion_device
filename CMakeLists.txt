@@ -39,7 +39,7 @@ include_directories(
 )
 
 # 添加第三方目录
-find_package(nlohmann_json CONFIG REQUIRED)
+add_subdirectory(thirdparty/json)
 
 # 搜索源文件
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c")
@@ -60,17 +60,14 @@ target_include_directories(auto-infusion PRIVATE
     ${GSL_CBLAS_INCLUDE_DIR}
     nlohmann_json::nlohmann_json
 )
-# ✅【修改2】条件链接 gpiod（仅在 Linux）
 target_link_libraries(auto-infusion
     PahoMqttCpp::paho-mqttpp3
     nlohmann_json::nlohmann_json
     ${GSL_LIBRARY}
     ${GSL_CBLAS_LIBRARY}
     ${OpenCV_LIBS}
+    ${LIBGPIOD_LIBRARIES}
 )
-if(HAVE_GPIOD)
-    target_link_libraries(auto-infusion PRIVATE ${LIBGPIOD_LIBRARIES})
-endif()
 
 # 单独编译 pump_calibration 程序
 add_executable(pump_calibration
