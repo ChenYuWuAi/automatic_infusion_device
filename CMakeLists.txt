@@ -18,7 +18,6 @@ if(PAHO_WITH_SSL)
     set(SSL_EXECUTABLES ssl_publish)
 endif()
 
-# ✅【修改1】根据平台决定是否引入 libgpiod
 if(UNIX)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LIBGPIOD REQUIRED libgpiod)
@@ -60,7 +59,7 @@ target_include_directories(auto-infusion PRIVATE
     ${GSL_CBLAS_INCLUDE_DIR}
     nlohmann_json::nlohmann_json
 )
-# ✅【修改2】条件链接 gpiod（仅在 Linux）
+
 target_link_libraries(auto-infusion
     PahoMqttCpp::paho-mqttpp3
     nlohmann_json::nlohmann_json

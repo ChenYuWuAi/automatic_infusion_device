@@ -1,6 +1,19 @@
 // 存储泵参数和泵状态
-
+#ifndef PUMP_COMMON_HPP
+#define PUMP_COMMON_HPP
 #include <stdint.h>
+
+enum PumpControlState
+{
+    IDLE=100,       // 空闲状态
+    VERIFY_PENDING, // 等待验证状态
+    VERIFIED, // 已验证状态
+    PREPARING, // 准备状态
+    INFUSING, // 输液状态
+    PAUSED, // 暂停状态
+    ERROR, // 错误状态
+    EMERGENCY_STOP // 紧急停止状态
+};
 
 typedef struct
 {
@@ -17,8 +30,7 @@ typedef struct
     bool direction;
     double infusion_progress;
     int remaining_time;
-    // 0: 空闲 1: 等待认证 2: 排空气 3: 输液中 4: 停止/暂停输液 5: 输液完成 6: 故障
-    uint8_t pump_state;
+    PumpControlState state;
 } PumpState;
 
 typedef struct
@@ -30,3 +42,6 @@ typedef struct
     double target_flow_rate;
     bool direction;
 } PumpParams;
+
+
+#endif // PUMP_COMMON_HPP
