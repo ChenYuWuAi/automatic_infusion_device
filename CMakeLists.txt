@@ -54,12 +54,19 @@ endforeach()
 # 主程序构建
 add_executable(auto-infusion ${SOURCES})
 
+target_include_directories(auto-infusion PRIVATE
+    ${OpenCV_INCLUDE_DIRS}
+    ${GSL_INCLUDE_DIR}
+    ${GSL_CBLAS_INCLUDE_DIR}
+    nlohmann_json::nlohmann_json
+)
 # ✅【修改2】条件链接 gpiod（仅在 Linux）
 target_link_libraries(auto-infusion
     PahoMqttCpp::paho-mqttpp3
     nlohmann_json::nlohmann_json
     ${GSL_LIBRARY}
     ${GSL_CBLAS_LIBRARY}
+    ${OpenCV_LIBS}
 )
 if(HAVE_GPIOD)
     target_link_libraries(auto-infusion PRIVATE ${LIBGPIOD_LIBRARIES})
