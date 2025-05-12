@@ -38,7 +38,7 @@ include_directories(
 )
 
 # 添加第三方目录
-find_package(nlohmann_json CONFIG REQUIRED)
+add_subdirectory(thirdparty/json)
 
 # 搜索源文件
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c")
@@ -66,10 +66,8 @@ target_link_libraries(auto-infusion
     ${GSL_LIBRARY}
     ${GSL_CBLAS_LIBRARY}
     ${OpenCV_LIBS}
+    ${LIBGPIOD_LIBRARIES}
 )
-if(HAVE_GPIOD)
-    target_link_libraries(auto-infusion PRIVATE ${LIBGPIOD_LIBRARIES})
-endif()
 
 # 单独编译 pump_calibration 程序
 add_executable(pump_calibration
