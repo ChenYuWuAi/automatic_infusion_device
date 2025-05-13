@@ -10,6 +10,8 @@
 #include <pump_common.hpp>
 #include <opencv2/opencv.hpp>
 #include "liquid_detector.hpp"
+#include <lccv.hpp>
+#include <camera_lccv.hpp>
 
 #include <memory>
 #include <thread>
@@ -36,6 +38,9 @@ bool running = true;
 std::atomic<bool> motor_thread_running{true};
 std::atomic<bool> liquid_detector_thread_running{true};
 std::atomic<bool> mqtt_thread_running{true};
+std::atomic<bool> camera_thread_running{true};
+std::atomic<double> liquid_level_percentage{-1.0}; // 无锁变量，用于线程间通信
+std::atomic<bool> pump_params_updated{false};      // 标记泵参数是否更新
 
 // 定义并注册 add 方法
 std::string add1_fn(const json &params)
@@ -144,7 +149,6 @@ void attribute_message_arrived(mqtt::const_message_ptr msg)
 {
     std::string payload(msg->to_string());
 
-    
     // 获取参数名称并同步到全局变量
     json request_json = json::parse(payload);
     // 如果有"shared" 则进入"shared"
@@ -152,7 +156,7 @@ void attribute_message_arrived(mqtt::const_message_ptr msg)
     {
         request_json = request_json["shared"];
     }
-    
+
     for (const auto &item : request_json.items())
     {
         std::string key = item.key();
@@ -165,6 +169,7 @@ void attribute_message_arrived(mqtt::const_message_ptr msg)
             pumpParams.target_flow_rate = std::stod(std::string(item.value()));
         }
     }
+    pump_params_updated.store(true);
 }
 
 void on_sigINT(int signum)
@@ -174,35 +179,121 @@ void on_sigINT(int signum)
     running = false;
 }
 
-void motor_control_thread() {
-    while (motor_thread_running) {
+void motor_control_thread()
+{
+    while (motor_thread_running)
+    {
         // 调用 pump_calibration 的流量计算逻辑并控制电机
         // motor->setSpeed(calculated_speed);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
-void liquid_detector_thread() {
-    while (liquid_detector_thread_running) {
+void liquid_detector_thread()
+{
+    while (liquid_detector_thread_running)
+    {
         // 调用液位检测逻辑并处理结果
         // 推送到 MQTT 服务器
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
-void mqtt_message_thread() {
-    while (mqtt_thread_running) {
+void mqtt_message_thread()
+{
+    while (mqtt_thread_running)
+    {
         mqtt::const_message_ptr msg;
-        if (client.try_consume_message(&msg)) {
-            if (msg->get_topic().find("v1/devices/me/rpc/request/") != std::string::npos) {
+        if (client.try_consume_message(&msg))
+        {
+            if (msg->get_topic().find("v1/devices/me/rpc/request/") != std::string::npos)
+            {
                 rpc_message_arrived(msg);
-            } else if (msg->get_topic().find("v1/devices/me/attributes") != std::string::npos) {
+            }
+            else if (msg->get_topic().find("v1/devices/me/attributes") != std::string::npos)
+            {
                 attribute_message_arrived(msg);
-            } else {
+            }
+            else
+            {
                 std::cout << "Unknown message topic: " << msg->get_topic() << std::endl;
             }
-        } else {
+        }
+        else
+        {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    }
+}
+
+void camera_thread()
+{
+    lccv::PiCamera cam;
+    cam.options->width = 640;
+    cam.options->height = 480;
+    cam.options->framerate = 5;
+    cam.start();
+
+    while (camera_thread_running)
+    {
+        cv::Mat frame;
+        cam.grab();
+        cam.retrieve(frame);
+
+        if (!frame.empty())
+        {
+            double percentage = detectLiquidLevelPercentage(frame, 100.0); // 假设总容量为100
+            if (percentage >= 0)
+            {
+                liquid_level_percentage.store(percentage);
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    cam.stop();
+}
+
+void control_thread()
+{
+    while (motor_thread_running)
+    {
+        if (pump_params_updated.exchange(false))
+        {
+            motor->setDirection(pumpParams.direction);
+            motor->setSpeed(pumpParams.target_flow_rate);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+}
+
+void mqtt_thread()
+{
+    while (mqtt_thread_running)
+    {
+        mqtt::const_message_ptr msg;
+        if (client.try_consume_message(&msg))
+        {
+            if (msg->get_topic().find("v1/devices/me/rpc/request/") != std::string::npos)
+            {
+                rpc_message_arrived(msg);
+            }
+            else if (msg->get_topic().find("v1/devices/me/attributes") != std::string::npos)
+            {
+                attribute_message_arrived(msg);
+                pump_params_updated.store(true);
+            }
+        }
+        else
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
+        // 推送液位百分比到远程
+        double percentage = liquid_level_percentage.load();
+        if (percentage >= 0)
+        {
+            json payload = {{"liquid_level_percentage", percentage}};
+            client.publish("v1/devices/me/telemetry", payload.dump());
         }
     }
 }
@@ -252,13 +343,15 @@ int main()
         client.publish(attrRequestTopic, attrRequestPayload.c_str(), attrRequestPayload.length(), 0, false);
         std::cout << "Requested shared attributes: pump_flow_rate, pump_direction" << std::endl;
 
-        std::thread motorThread(motor_control_thread);
-        std::thread liquidThread(liquid_detector_thread);
-        std::thread mqttThread(mqtt_message_thread);
+        std::thread motorThread(control_thread);
+        std::thread mqttThread(mqtt_thread);
+        std::thread cameraThread(camera_thread);
 
         // 主线程作为看门狗
-        while (running) {
-            if (!motor_thread_running || !liquid_detector_thread_running || !mqtt_thread_running) {
+        while (running)
+        {
+            if (!motor_thread_running || !mqtt_thread_running || !camera_thread_running)
+            {
                 std::cerr << "Error: One of the threads has stopped unexpectedly!" << std::endl;
                 break;
             }
@@ -267,12 +360,12 @@ int main()
 
         // 停止所有线程
         motor_thread_running = false;
-        liquid_detector_thread_running = false;
         mqtt_thread_running = false;
+        camera_thread_running = false;
 
         motorThread.join();
-        liquidThread.join();
         mqttThread.join();
+        cameraThread.join();
     }
     catch (const mqtt::exception &e)
     {

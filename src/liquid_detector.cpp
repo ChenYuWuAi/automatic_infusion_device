@@ -59,8 +59,12 @@ double detectLiquidLevelPercentage(const Mat& inputImage, double totalVolume) {
         return -1.0;
     }
 
-    int width = inputImage.cols;
-    int height = inputImage.rows;
+    // 将图像调整为固定大小
+    Mat resizedImage;
+    resize(inputImage, resizedImage, Size(640, 480));
+
+    int width = resizedImage.cols;
+    int height = resizedImage.rows;
 
     startHeight = std::clamp(startHeight, 0.0, 1.0);
     endHeight = std::clamp(endHeight, 0.0, 1.0);
@@ -78,7 +82,7 @@ double detectLiquidLevelPercentage(const Mat& inputImage, double totalVolume) {
     int cropHeight = static_cast<int>(height * (endHeight - startHeight));
     Rect roi(cropX, cropY, cropWidth, cropHeight);
 
-    Mat croppedImage = inputImage(roi);
+    Mat croppedImage = resizedImage(roi);
 
     Mat gray, edges;
     cvtColor(croppedImage, gray, COLOR_BGR2GRAY);
