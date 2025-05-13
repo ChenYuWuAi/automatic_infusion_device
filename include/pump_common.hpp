@@ -11,8 +11,8 @@ enum PumpControlState
     PREPARING, // 准备状态
     INFUSING, // 输液状态
     PAUSED, // 暂停状态
-    ERROR, // 错误状态
     EMERGENCY_STOP // 紧急停止状态
+    ERROR, // 错误状态
 };
 
 typedef struct
