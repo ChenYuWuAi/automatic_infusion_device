@@ -12,6 +12,9 @@
 #include "liquid_detector.hpp"
 
 #include <memory>
+#include <thread>
+#include <atomic>
+#include <vector>
 
 const std::string SERVER_ADDRESS("mqtt://tb.chenyuwuai.xyz:1883");
 const std::string CLIENT_ID("cpp_subscriber");
@@ -29,6 +32,10 @@ PumpState pumpState;
 std::shared_ptr<MotorController> motor;
 
 bool running = true;
+
+std::atomic<bool> motor_thread_running{true};
+std::atomic<bool> liquid_detector_thread_running{true};
+std::atomic<bool> mqtt_thread_running{true};
 
 // 定义并注册 add 方法
 std::string add1_fn(const json &params)
@@ -167,6 +174,39 @@ void on_sigINT(int signum)
     running = false;
 }
 
+void motor_control_thread() {
+    while (motor_thread_running) {
+        // 调用 pump_calibration 的流量计算逻辑并控制电机
+        // motor->setSpeed(calculated_speed);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+}
+
+void liquid_detector_thread() {
+    while (liquid_detector_thread_running) {
+        // 调用液位检测逻辑并处理结果
+        // 推送到 MQTT 服务器
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+}
+
+void mqtt_message_thread() {
+    while (mqtt_thread_running) {
+        mqtt::const_message_ptr msg;
+        if (client.try_consume_message(&msg)) {
+            if (msg->get_topic().find("v1/devices/me/rpc/request/") != std::string::npos) {
+                rpc_message_arrived(msg);
+            } else if (msg->get_topic().find("v1/devices/me/attributes") != std::string::npos) {
+                attribute_message_arrived(msg);
+            } else {
+                std::cout << "Unknown message topic: " << msg->get_topic() << std::endl;
+            }
+        } else {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    }
+}
+
 int main()
 {
     const int microPins[3] = {16, 17, 20};
@@ -212,36 +252,27 @@ int main()
         client.publish(attrRequestTopic, attrRequestPayload.c_str(), attrRequestPayload.length(), 0, false);
         std::cout << "Requested shared attributes: pump_flow_rate, pump_direction" << std::endl;
 
-        // 保持连接，等待消息
-        while (running)
-        {
-            // 使用 try_consume_message() 方法来获取消息
-            mqtt::const_message_ptr msg;
-            if (client.try_consume_message(&msg))
-            {
-                std::cout << "Received message: " << msg->to_string() << std::endl;
-                // 发送响应
-                // 如果内容有"method" "params"字段则调用rpc_message_arrived
-                if (msg->get_topic().find("v1/devices/me/rpc/request/") != std::string::npos)
-                {
-                    rpc_message_arrived(msg);
-                }
-                else if (msg->get_topic().find("v1/devices/me/attributes") != std::string::npos)
-                {
-                    // 处理属性消息
-                    std::cout << "Received attribute message: " << msg->to_string() << std::endl;
-                    attribute_message_arrived(msg);
-                }
-                else
-                {
-                    std::cout << "Unknown message topic: " << msg->get_topic() << std::endl;
-                }
+        std::thread motorThread(motor_control_thread);
+        std::thread liquidThread(liquid_detector_thread);
+        std::thread mqttThread(mqtt_message_thread);
+
+        // 主线程作为看门狗
+        while (running) {
+            if (!motor_thread_running || !liquid_detector_thread_running || !mqtt_thread_running) {
+                std::cerr << "Error: One of the threads has stopped unexpectedly!" << std::endl;
+                break;
             }
-            else
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
+
+        // 停止所有线程
+        motor_thread_running = false;
+        liquid_detector_thread_running = false;
+        mqtt_thread_running = false;
+
+        motorThread.join();
+        liquidThread.join();
+        mqttThread.join();
     }
     catch (const mqtt::exception &e)
     {
