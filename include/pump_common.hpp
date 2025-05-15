@@ -2,46 +2,36 @@
 #ifndef PUMP_COMMON_HPP
 #define PUMP_COMMON_HPP
 #include <stdint.h>
+#include <atomic>
 
 enum PumpControlState
 {
-    IDLE=100,       // 空闲状态
+    IDLE = 100,     // 空闲状态
     VERIFY_PENDING, // 等待验证状态
-    VERIFIED, // 已验证状态
-    PREPARING, // 准备状态
-    INFUSING, // 输液状态
-    PAUSED, // 暂停状态
-    EMERGENCY_STOP // 紧急停止状态
-    ERROR, // 错误状态
+    VERIFIED,       // 已验证状态
+    PREPARING,      // 准备状态
+    INFUSING,       // 输液状态
+    PAUSED,         // 暂停状态
+    EMERGENCY_STOP, // 紧急停止状态
+    ERROR,          // 错误状态
 };
 
-typedef struct
+struct PumpState
 {
-    // 当前流量(估计) ml/mh
-    // 当前转速 rpm
-    // 液位高度 %
-    // 方向
-    // 输液进度 %
-    // 目标流量 ml/h
-    // 剩余时间 s
-    double current_flow_rate;
-    double current_speed;
-    double liquid_height;
-    bool direction;
-    double infusion_progress;
-    int remaining_time;
-    PumpControlState state;
-} PumpState;
+    std::atomic<double> current_flow_rate{0.0};
+    std::atomic<double> current_speed{0.0};
+    std::atomic<double> liquid_height{0.0};
+    std::atomic<bool> direction{false};
+    std::atomic<double> infusion_progress{0.0};
+    std::atomic<int> remaining_time{0};
+    std::atomic<PumpControlState> state{IDLE};
+};
 
-typedef struct
+struct PumpParams
 {
-    // 目标流量 ml/h
-    // 目标转速 rpm
-    // 方向
-    // 输液进度 %
-    double target_flow_rate;
-    bool direction;
-} PumpParams;
-
+    std::atomic<double> target_flow_rate{0.0};
+    std::atomic<double> target_rpm{0.0};
+    std::atomic<bool> direction{false};
+};
 
 #endif // PUMP_COMMON_HPP

@@ -42,6 +42,15 @@ namespace openfsm {
     }
 
     OpenFSMState::~OpenFSMState() {
+        // 清理动作
+        for (const OpenFSMAction* action : vectAction_) {
+            delete action;
+        }
+        vectAction_.clear();
+    }
+    
+    void OpenFSMState::addAction(const OpenFSMAction* action) {
+        vectAction_.push_back(action);
     }
 
     void OpenFSMState::enter(OpenFSM &fsm) const {
@@ -90,13 +99,26 @@ namespace openfsm {
 
 
 //OpenFSM
-    OpenFSM::OpenFSMPool OpenFSM::OpenFSMPool_;
-
-    OpenFSM::OpenFSM()
-            : eNextState_(0), eLastState_(0), fsmState_(0) {
+    OpenFSM::OpenFSMPool OpenFSM::OpenFSMPool_;    OpenFSM::OpenFSM()
+            : eNextState_(0), eLastState_(0), fsmState_(0), custom_(nullptr) {
     }
 
     OpenFSM::~OpenFSM() {
+        // 清理状态
+        for (OpenFSMState* state : vectState_) {
+            delete state;
+        }
+        vectState_.clear();
+    }
+    
+    void OpenFSM::addState(OpenFSMState* state) {
+        if (state) {
+            vectState_.push_back(state);
+        }
+    }
+    
+    void* OpenFSM::getCustom() {
+        return custom_;
     }
 
     bool OpenFSM::enterState(int eState) {

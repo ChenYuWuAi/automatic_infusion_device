@@ -1,5 +1,17 @@
 cmake_minimum_required(VERSION 3.10)
-project(MQTTExample)
+project(AutoInfusionPump)
+
+# C++ 17
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# ccache
+set(CMAKE_CXX_COMPILER_LAUNCHER ccache)
+set(CMAKE_C_COMPILER_LAUNCHER ccache)
+
+# ninja
+set(CMAKE_GENERATOR "Ninja")
+
 
 # 查找 GSL（GNU Scientific Library）
 find_path(GSL_INCLUDE_DIR gsl/gsl_math.h)
@@ -30,18 +42,34 @@ endif()
 # MQTT
 find_package(PahoMqttCpp CONFIG REQUIRED)
 
+# 寻找 spdlog 包
+find_package(spdlog QUIET)
+if(NOT spdlog_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(
+        spdlog
+        GIT_REPOSITORY https://github.com/gabime/spdlog.git
+        GIT_TAG v1.12.0
+    )
+    FetchContent_MakeAvailable(spdlog)
+endif()
+
+pkg_check_modules(LIBCAMERA REQUIRED libcamera)
+
 # 添加 include 目录
 include_directories(
     include
     ${OpenCV_INCLUDE_DIRS}
     ${GSL_INCLUDE_DIR}
+    ${CMAKE_SOURCE_DIR}/include
 )
 
 # 添加第三方目录
 add_subdirectory(thirdparty/json)
 
 # 搜索源文件
-file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c")
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c" "thirdparty/LCCV/src/*.cpp")
+list(APPEND SOURCES "src/motor_driver.cpp")
 
 # 从源文件中排除特定文件
 foreach(file IN LISTS SOURCES)
@@ -57,7 +85,10 @@ target_include_directories(auto-infusion PRIVATE
     ${OpenCV_INCLUDE_DIRS}
     ${GSL_INCLUDE_DIR}
     ${GSL_CBLAS_INCLUDE_DIR}
+    ${LIBCAMERA_INCLUDE_DIRS}
     nlohmann_json::nlohmann_json
+    ${CMAKE_CURRENT_LIST_DIR}/thirdparty/LCCV/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 target_link_libraries(auto-infusion
@@ -67,6 +98,8 @@ target_link_libraries(auto-infusion
     ${GSL_CBLAS_LIBRARY}
     ${OpenCV_LIBS}
     ${LIBGPIOD_LIBRARIES}
+    ${LIBCAMERA_LINK_LIBRARIES}
+    spdlog::spdlog
 )
 
 # 单独编译 pump_calibration 程序

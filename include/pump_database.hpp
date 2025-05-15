@@ -1,3 +1,6 @@
+#ifndef PUMP_DATABASE_HPP
+#define PUMP_DATABASE_HPP
+
 #include <string>
 #include <vector>
 #include <functional>
@@ -73,3 +76,5 @@ private:
     std::vector<PumpData> pumps_;
     std::string file_name_;
 };
+
+#endif // PUMP_DATABASE_HPP

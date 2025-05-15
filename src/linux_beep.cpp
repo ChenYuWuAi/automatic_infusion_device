@@ -53,12 +53,13 @@ void signal_handler(int signum)
 
 void play_song_thread(int fd, note_t notes_to_play[], int notes_count, bool& stop)
 {
-    // 注册SIGINT和SIGTERM信号处理函数，在收到这些信号时设置stop为true
+    // 不在线程中设置信号处理器，而是由主线程设置
     if(gStop!=nullptr)
         *gStop = true;
     gStop = &stop;
-    signal(SIGINT, signal_handler);
-    signal(SIGTERM, signal_handler);
+    // 移除这里的信号处理器设置，避免与主线程信号处理冲突
+    // signal(SIGINT, signal_handler);
+    // signal(SIGTERM, signal_handler);
     for (int i = 0; i < notes_count; i++)
     {
         if (stop)

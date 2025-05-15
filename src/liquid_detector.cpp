@@ -1,7 +1,7 @@
 // liquid_detector.cpp
 #include "liquid_detector.hpp"
+#include "logger.hpp"
 #include <opencv2/opencv.hpp>
-#include <iostream>
 #include <vector>
 #include <algorithm>
 
@@ -15,7 +15,8 @@ double startWidth = 0.0;
 double endWidth = 1.0;
 
 // 液位检测辅助函数（霍夫线检测）
-Vec4i detectLiquidLevelLine(const Mat& edgeImage) {
+Vec4i detectLiquidLevelLine(const Mat &edgeImage)
+{
     vector<Vec4i> lines;
     HoughLinesP(edgeImage, lines, 1, CV_PI / 180, 70, 40, 10);
 
@@ -26,13 +27,17 @@ Vec4i detectLiquidLevelLine(const Mat& edgeImage) {
     Vec4i bestLine;
     int maxLength = 0;
 
-    for (const auto& line : lines) {
+    for (const auto &line : lines)
+    {
         int x1 = line[0], y1 = line[1], x2 = line[2], y2 = line[3];
-        if (abs(y2 - y1) < 15) { // 接近水平
+        if (abs(y2 - y1) < 15)
+        { // 接近水平
             int midY = (y1 + y2) / 2;
-            if (midY >= minY && midY <= maxY) {
+            if (midY >= minY && midY <= maxY)
+            {
                 int length = abs(x2 - x1);
-                if (length > maxLength) {
+                if (length > maxLength)
+                {
                     maxLength = length;
                     bestLine = line;
                 }
@@ -44,7 +49,8 @@ Vec4i detectLiquidLevelLine(const Mat& edgeImage) {
 }
 
 // 映射函数（液位线位置到真实体积）
-double simulation_function(double x) {
+double simulation_function(double x)
+{
     double a = -0.1053;
     double b = 3.4573;
     double c = -1.1123;
@@ -53,9 +59,11 @@ double simulation_function(double x) {
 }
 
 // 液位检测主函数
-double detectLiquidLevelPercentage(const Mat& inputImage, double totalVolume) {
-    if (inputImage.empty()) {
-        cerr << "输入图像为空，检测失败。" << endl;
+double detectLiquidLevelPercentage(const Mat &inputImage, double totalVolume)
+{
+    if (inputImage.empty())
+    {
+        InfusionLogger::error("输入图像为空，检测失败。");
         return -1.0;
     }
 
@@ -71,8 +79,9 @@ double detectLiquidLevelPercentage(const Mat& inputImage, double totalVolume) {
     startWidth = std::clamp(startWidth, 0.0, 1.0);
     endWidth = std::clamp(endWidth, 0.0, 1.0);
 
-    if (startHeight >= endHeight || startWidth >= endWidth) {
-        cerr << "裁剪参数设置错误（start应小于end）" << endl;
+    if (startHeight >= endHeight || startWidth >= endWidth)
+    {
+        InfusionLogger::error("裁剪参数设置错误（start应小于end）");
         return -1.0;
     }
 
@@ -90,8 +99,9 @@ double detectLiquidLevelPercentage(const Mat& inputImage, double totalVolume) {
 
     Vec4i levelLine = detectLiquidLevelLine(edges);
 
-    if (levelLine == Vec4i(0, 0, 0, 0)) {
-        cerr << "未检测到液位线。" << endl;
+    if (levelLine == Vec4i(0, 0, 0, 0))
+    {
+        InfusionLogger::debug("未检测到液位线。");
         return -1.0;
     }
 

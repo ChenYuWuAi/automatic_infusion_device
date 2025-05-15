@@ -36,9 +36,7 @@ namespace openfsm {
         std::string actionName_;
 
         friend class OpenFSM;
-    };
-
-    class OpenFSMState {
+    };    class OpenFSMState {
     public:
         OpenFSMState();
 
@@ -51,6 +49,8 @@ namespace openfsm {
         virtual void update(OpenFSM &fsm) const;
 
         virtual void exit(OpenFSM &fsm) const;
+        
+        void addAction(const OpenFSMAction* action);
 
     protected:
         void nextAction(OpenFSM &fsm) const;
@@ -85,9 +85,9 @@ namespace openfsm {
 
         bool setStates(const std::initializer_list<std::string> &list);
 
-        bool setStates(std::vector<int> &vectStateId);
-
-        bool setStates(const std::initializer_list<int> &list);
+        bool setStates(std::vector<int> &vectStateId);        bool setStates(const std::initializer_list<int> &list);
+        
+        void addState(OpenFSMState* state);
 
         inline int focusEState() { return fsmState_ ? fsmState_->eState_ : 0; }
 
@@ -101,6 +101,8 @@ namespace openfsm {
         inline void operator=(const std::initializer_list<int> &list) { setStates(list); }
 
         inline void setCustom(void *custom) { custom_ = custom; }
+        
+        void* getCustom();
 
         template<class T>
         inline T *custom() { return dynamic_cast<T *>((T *) custom_); }
