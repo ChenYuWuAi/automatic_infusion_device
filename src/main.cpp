@@ -6,7 +6,8 @@
 #include <unordered_map>
 
 // 显示帮助信息
-void showHelp(const char *programName) {
+void showHelp(const char *programName)
+{
     std::cout << "用法: " << programName << " [选项]" << std::endl;
     std::cout << "选项:" << std::endl;
     std::cout << "  --log-level=LEVEL   设置日志级别 (trace, debug, info, warn, error, critical)" << std::endl;
@@ -18,7 +19,8 @@ void showHelp(const char *programName) {
     std::cout << "  --help, -h          显示帮助信息" << std::endl;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     // 日志配置默认值
     InfusionLogger::LogLevel logLevel = InfusionLogger::LogLevel::INFO;
     std::string logFile = "infusion_device.log";
@@ -30,61 +32,72 @@ int main(int argc, char *argv[]) {
     std::string pumpName = "auto-infusion-01";
 
     // 解析命令行参数
-    for (int i = 1; i < argc; ++i) {
+    for (int i = 1; i < argc; ++i)
+    {
         std::string arg = argv[i];
 
         // 帮助选项
-        if (arg == "--help" || arg == "-h") {
+        if (arg == "--help" || arg == "-h")
+        {
             showHelp(argv[0]);
             return 0;
         }
 
         // 日志级别选项
-        if (arg.find("--log-level=") == 0) {
+        if (arg.find("--log-level=") == 0)
+        {
             std::string levelStr = arg.substr(12); // 提取级别字符串
 
             static const std::unordered_map<std::string, InfusionLogger::LogLevel> levelMap = {
-                    {"trace",    InfusionLogger::LogLevel::TRACE},
-                    {"debug",    InfusionLogger::LogLevel::DEBUG},
-                    {"info",     InfusionLogger::LogLevel::INFO},
-                    {"warn",     InfusionLogger::LogLevel::WARN},
-                    {"error",    InfusionLogger::LogLevel::ERROR},
-                    {"critical", InfusionLogger::LogLevel::CRITICAL}
-            };
+                {"trace", InfusionLogger::LogLevel::TRACE},
+                {"debug", InfusionLogger::LogLevel::DEBUG},
+                {"info", InfusionLogger::LogLevel::INFO},
+                {"warn", InfusionLogger::LogLevel::WARN},
+                {"error", InfusionLogger::LogLevel::ERROR},
+                {"critical", InfusionLogger::LogLevel::CRITICAL}};
 
             auto it = levelMap.find(levelStr);
-            if (it != levelMap.end()) {
+            if (it != levelMap.end())
+            {
                 logLevel = it->second;
-            } else {
+            }
+            else
+            {
                 std::cerr << "无效的日志级别: " << levelStr << std::endl;
                 showHelp(argv[0]);
                 return 1;
             }
         }
-            // 日志文件选项
-        else if (arg.find("--log-file=") == 0) {
+        // 日志文件选项
+        else if (arg.find("--log-file=") == 0)
+        {
             logFile = arg.substr(11); // 提取文件名
         }
-            // 控制台输出选项
-        else if (arg == "--console-only") {
+        // 控制台输出选项
+        else if (arg == "--console-only")
+        {
             consoleOnly = true;
             fileOnly = false;
         }
-            // 文件输出选项
-        else if (arg == "--file-only") {
+        // 文件输出选项
+        else if (arg == "--file-only")
+        {
             fileOnly = true;
             consoleOnly = false;
         }
-            // 泵数据文件选项
-        else if (arg.find("--pump-data=") == 0) {
+        // 泵数据文件选项
+        else if (arg.find("--pump-data=") == 0)
+        {
             pumpDataFile = arg.substr(12); // 提取文件名
         }
-            // 泵名称选项
-        else if (arg.find("--pump-name=") == 0) {
+        // 泵名称选项
+        else if (arg.find("--pump-name=") == 0)
+        {
             pumpName = arg.substr(12); // 提取泵名称
         }
-            // 未知选项
-        else {
+        // 未知选项
+        else
+        {
             std::cerr << "未知选项: " << arg << std::endl;
             showHelp(argv[0]);
             return 1;
@@ -99,17 +112,20 @@ int main(int argc, char *argv[]) {
                           logFile, consoleOnly ? "是" : "否", fileOnly ? "是" : "否");
     InfusionLogger::info("泵配置 - 数据文件: {}, 泵名称: {}", pumpDataFile, pumpName);
 
-    try {
+    try
+    {
         // 创建并初始化应用程序
         InfusionApp app(pumpDataFile, pumpName);
 
-        if (!app.initialize()) {
+        if (!app.initialize())
+        {
             InfusionLogger::error("初始化应用程序失败！");
             return 1;
         }
 
         // 启动应用程序并等待退出
-        if (!app.start()) {
+        if (!app.start())
+        {
             InfusionLogger::error("启动应用程序失败！");
             return 2;
         }
@@ -117,7 +133,8 @@ int main(int argc, char *argv[]) {
         // 应用程序正常退出
         InfusionLogger::info("应用程序已退出");
     }
-    catch (const std::exception &e) {
+    catch (const std::exception &e)
+    {
         InfusionLogger::error("程序运行时出现异常: {}", e.what());
         return 3;
     }
