@@ -24,7 +24,7 @@ public:
      * @param username 用户名
      * @param topic 主题
      */
-    MQTTHandler(const std::string& serverAddress, const std::string& clientId, const std::string& username);
+    MQTTHandler(const std::string &serverAddress, const std::string &clientId, const std::string &username);
     
     /**
      * @brief 析构函数
@@ -43,7 +43,7 @@ public:
      * @param qos 服务质量
      * @return 订阅是否成功
      */
-    bool subscribe(const std::string& topic, int qos = 1);
+    bool subscribe(const std::string &topic, int qos = 1);
     
     /**
      * @brief 发布消息到主题
@@ -52,7 +52,7 @@ public:
      * @param qos 服务质量
      * @return 发布是否成功
      */
-    bool publish(const std::string& topic, const std::string& payload, int qos = 0);
+    bool publish(const std::string &topic, const std::string &payload, int qos = 0);
     
     /**
      * @brief 检查是否连接
@@ -101,7 +101,7 @@ public:
      * @param remainTime 剩余时间
      * @return 发送是否成功
      */
-    bool sendBatteryTelemetry(int capacity, const std::string& status, double power, long long remainTime);
+    bool sendBatteryTelemetry(int capacity, const std::string &status, double power, long long remainTime);
 
     /**
      * @brief 发送泵速信息
@@ -116,13 +116,13 @@ public:
      * @param speed 当前转速
      * @return 发送是否成功
      */
-    bool sendPumpStateTelemetry(double flowRate, double speed);
+    bool sendPumpStateTelemetry(double flowRate, double speed, std::string pumpState_);
 
     /**
      * @brief 设置电机驱动器引用
      * @param motorDriver 电机驱动器指针
      */
-    void setMotorDriver(MotorDriver* motorDriver) {
+    void setMotorDriver(MotorDriver *motorDriver) {
         motorDriver_ = motorDriver;
     }
     
@@ -130,7 +130,7 @@ public:
      * @brief 设置泵参数引用
      * @param pumpParams 泵参数指针
      */
-    void setPumpParams(PumpParams* pumpParams) {
+    void setPumpParams(PumpParams *pumpParams) {
         pumpParams_ = pumpParams;
     }
     
@@ -138,7 +138,7 @@ public:
      * @brief 获取电机驱动器
      * @return 电机驱动器
      */
-    MotorDriver* getMotorDriver() const {
+    MotorDriver *getMotorDriver() const {
         return motorDriver_;
     }
 
@@ -147,7 +147,7 @@ public:
      * @param data 遥测数据JSON对象
      * @return 发送是否成功
      */
-    virtual bool sendTelemetry(const json& data) override;
+    virtual bool sendTelemetry(const json &data) override;
     
     /**
      * @brief 实现 TelemetryInterface::isReady
@@ -168,9 +168,9 @@ private:
     const std::string TELEMETRY_TOPIC = "v1/devices/me/telemetry";
     
     // 电机驱动器引用 - 供RPC函数调用
-    MotorDriver* motorDriver_ = nullptr;
+    MotorDriver *motorDriver_ = nullptr;
     // 泵参数引用 - 供RPC函数调用
-    PumpParams* pumpParams_ = nullptr;
+    PumpParams *pumpParams_ = nullptr;
 };
 
 #endif // MQTT_HANDLER_HPP

@@ -132,6 +132,8 @@ private:
      * @return 是否初始化成功
      */
     bool initializeStateMachine();
+
+    void playShutdownSound();
 };
 
 #endif // INFUSION_APP_HPP

@@ -75,17 +75,6 @@ bool InfusionApp::initialize() {
             InfusionLogger::warn("初始化相机失败，继续执行...");
         }
         
-        // 初始化电机驱动器
-        motorDriver_ = std::make_unique<MotorDriver>(GPIO_CHIPNAME, DIR_PIN, microPins_, MOTOR_PWM_DEVICE, pumpState_);
-        if (!motorDriver_->initialize()) {
-            InfusionLogger::error("初始化电机驱动器失败!");
-            return false;
-        }
-        
-        // 设置默认电机状态
-        motorDriver_->setDirection(0);
-        motorDriver_->setSpeed(0);
-        
         // 更新全局泵参数，供RPC使用
         extern PumpParams g_pumpParams;
         // 由于std::atomic不支持拷贝赋值，因此需要逐个成员赋值
@@ -99,7 +88,7 @@ bool InfusionApp::initialize() {
         
         // 初始化MQTT线程管理器
         mqttThreadManager_ = std::make_unique<MQTTThreadManager>(
-            *mqttHandler_, *batteryMonitor_, *cameraManager_, pumpParams_, pump_params_updated_);
+                *mqttHandler_, *batteryMonitor_, *cameraManager_, pumpParams_, pumpState_, pump_params_updated_);
         // 设置电机驱动器到MQTT线程管理器
         mqttThreadManager_->setMotorDriver(motorDriver_.get());
         // 设置泵数据库到MQTT线程管理器
@@ -183,6 +172,14 @@ bool InfusionApp::start() {
 
 void InfusionApp::stop() {
     InfusionLogger::info("正在关闭输液应用程序...");
+
+    // 停止蜂鸣器
+    beep_stop_ = true;
+
+//    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+    // 播放关闭音效
+    playShutdownSound();
     
     // 首先通过状态机将泵状态设置为IDLE
     if (stateMachine_) {
@@ -209,9 +206,6 @@ void InfusionApp::stop() {
     if (mqttThreadManager_) {
         mqttThreadManager_->stop();
     }
-    
-    // 停止蜂鸣器
-    beep_stop_ = true;
     
     InfusionLogger::info("应用程序已关闭");
 }
@@ -261,7 +255,20 @@ void InfusionApp::playStartupSound() {
         songThread.detach();
         
         InfusionLogger::debug("启动音效已播放");
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
+        InfusionLogger::error("播放启动音效时出错: {}", e.what());
+    }
+}
+
+void InfusionApp::playShutdownSound() {
+    try {
+        beep_stop_ = false;
+        std::thread songThread(play_song_thread, beep_fd_, buzzer_win10_remove,
+                               sizeof(buzzer_win10_remove) / sizeof(note_t), std::ref(beep_stop_));
+        songThread.detach();
+
+        InfusionLogger::debug("停止音效已播放");
+    } catch (const std::exception &e) {
         InfusionLogger::error("播放启动音效时出错: {}", e.what());
     }
 }
@@ -274,7 +281,7 @@ bool InfusionApp::initializePumpDatabase() {
         pumpDatabase_ = std::make_unique<PumpDatabase>(pumpDataFile_);
         
         // 检查指定的泵是否存在
-        const PumpData* pumpData = pumpDatabase_->getPump(pumpName_);
+        const PumpData *pumpData = pumpDatabase_->getPump(pumpName_);
         if (!pumpData) {
             InfusionLogger::error("无法找到泵名称: {}", pumpName_);
             return false;

@@ -4,6 +4,9 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <iostream>
+#include <ostream>
+#include <vector>
+#include <string>
 #include <memory>
 
 namespace InfusionLogger {

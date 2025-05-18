@@ -151,7 +151,7 @@ bool MQTTHandler::sendLiquidLevelTelemetry(double percentage) {
     }
 }
 
-bool MQTTHandler::sendBatteryTelemetry(int capacity, const std::string& status, double power, long long remainTime) {
+bool MQTTHandler::sendBatteryTelemetry(int capacity, const std::string &status, double power, long long remainTime) {
     try {
         json batteryTelemetry;
         batteryTelemetry["battery"] = capacity;
@@ -169,7 +169,7 @@ bool MQTTHandler::sendBatteryTelemetry(int capacity, const std::string& status, 
             InfusionLogger::warn("MQTT客户端未连接，无法发送电池信息");
             return false;
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         InfusionLogger::error("发送电池信息时出错: {}", e.what());
         return false;
     }
@@ -212,14 +212,18 @@ bool MQTTHandler::sendTelemetry(const json& data) {
     }
 }
 
-bool MQTTHandler::sendPumpStateTelemetry(double flowRate, double speed) {
+bool MQTTHandler::sendPumpStateTelemetry(double flowRate, double speed, std::string pumpState_) {
     try {
+        if (speed == 0)
+            flowRate = 0;
+
         json telemetry = {
-            {"flowRate", flowRate},
-            {"speed", speed}
+                {"pump_current_flowrate", flowRate},
+                {"pumpSpeed", speed},
+                {"pumpState", pumpState_},
         };
         return sendTelemetry(telemetry);
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         InfusionLogger::error("发送泵状态遥测数据时出错: {}", e.what());
         return false;
     }

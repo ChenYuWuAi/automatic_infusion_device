@@ -16,6 +16,12 @@ static note_t buzzer_win10_plugin[] = {
     {659, 272},
 };
 
+static note_t buzzer_win10_remove[] = {
+        {440, 136},
+        {349, 102},
+        {329, 136},
+};
+
 static note_t buzzer_if_i_could_be_a_constelletion[] = {
     // {0, 375},
     // {830, 473},

@@ -7,11 +7,13 @@ MQTTThreadManager::MQTTThreadManager(MQTTHandler &mqttHandler,
                                      BatteryMonitor &batteryMonitor,
                                      CameraManager &cameraManager,
                                      PumpParams &pumpParams,
+                                     PumpState &pumpState,
                                      std::atomic<bool> &paramsUpdatedFlag)
         : mqttHandler_(mqttHandler),
           batteryMonitor_(batteryMonitor),
           cameraManager_(cameraManager),
           pumpParams_(pumpParams),
+          pumpState_(pumpState),
           paramsUpdatedFlag_(paramsUpdatedFlag) {
 }
 
@@ -34,7 +36,7 @@ void MQTTThreadManager::stop() {
     // 停止前发送零流量和转速信息
     if (thread_running_.load() && mqttHandler_.isConnected()) {
         // 发送零流量和零转速
-        mqttHandler_.sendPumpStateTelemetry(0.0, 0.0);
+        mqttHandler_.sendPumpStateTelemetry(0.0, 0.0, "SHUTDOWN");
         InfusionLogger::info("已发送停止状态 (流量: 0, 转速: 0)");
     }
 
@@ -109,8 +111,7 @@ void MQTTThreadManager::mqttThread() {
                     json liquidTelemetry;
                     liquidTelemetry["progress"] = liquidLevel;
                     mqttHandler_.sendTelemetry(liquidTelemetry);
-                }
-                else {
+                } else {
                     InfusionLogger::warn("液位百分比无效: {}%", liquidLevel);
                 }
 
@@ -127,9 +128,51 @@ void MQTTThreadManager::mqttThread() {
                     }
                 }
 
+                std::string pumpStateString;
+                /*
+                 * const std::string STATE_IDLE = "IDLE";
+                    const std::string STATE_VERIFY_PENDING = "VERIFY_PENDING";
+                    const std::string STATE_VERIFIED = "VERIFIED";
+                    const std::string STATE_PREPARING = "PREPARING";
+                    const std::string STATE_INFUSING = "INFUSING";
+                    const std::string STATE_PAUSED = "PAUSED";
+                    const std::string STATE_EMERGENCY_STOP = "EMERGENCY_STOP";
+                    const std::string STATE_ERROR = "ERROR";
+                 */
+                switch (pumpState_.state.load()) {
+                    case IDLE:
+                        pumpStateString = "IDLE";
+                        break;
+                    case VERIFY_PENDING:
+                        pumpStateString = "VERIFY_PENDING";
+                        break;
+                    case VERIFIED:
+                        pumpStateString = "VERIFIED";
+                        break;
+                    case PREPARING:
+                        pumpStateString = "PREPARING";
+                        break;
+                    case INFUSING:
+                        pumpStateString = "INFUSING";
+                        break;
+                    case PAUSED:
+                        pumpStateString = "PAUSED";
+                        break;
+                    case EMERGENCY_STOP:
+                        pumpStateString = "EMERGENCY_STOP";
+                        break;
+                    case ERROR:
+                        pumpStateString = "ERROR";
+                        break;
+                    default:
+                        pumpStateString = "UNKNOWN";
+                        break;
+                }
+
                 // 发送泵状态信息
-                mqttHandler_.sendPumpStateTelemetry(currentFlowRate, currentSpeed);
-                InfusionLogger::debug("已发送泵状态 - 流量: {:.2f} ml/h, 转速: {:.2f} RPM",
+                mqttHandler_.sendPumpStateTelemetry(currentFlowRate, currentSpeed, pumpStateString);
+                InfusionLogger::debug(
+                        "已发送泵状态 - 流量: {:.2f} ml/h, 转速: {:.2f} RPM",
                                       currentFlowRate, currentSpeed);
 
                 // 更新时间

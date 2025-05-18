@@ -5,6 +5,7 @@
 #include <atomic>
 #include <opencv2/opencv.hpp>
 #include <camera_hal/camera_driver.hpp>
+#include <chrono>
 
 /**
  * @brief 相机管理器类，负责相机操作和液位检测
@@ -56,7 +57,18 @@ private:
     std::shared_ptr<CameraHAL::CameraDriver> camera_driver_;
     std::atomic<bool> camera_thread_running_{false};
     std::atomic<double> liquid_level_percentage_{-1.0};
-    
+    // ROI坐标（相对比例）
+    double startHeight_ = 0.0, startWidth_ = 0.0, endHeight_ = 1.0, endWidth_ = 1.0;
+    // 标定间隔（毫秒），默认5分钟
+    const std::chrono::milliseconds calibrationInterval_{300000};
+    std::chrono::steady_clock::time_point lastCalibration_;
+  
+    /**
+     * @brief 执行ROI自动标定
+     * @param frame 当前帧
+     */
+    void calibrateROI(const cv::Mat& frame);
+
     /**
      * @brief 相机处理线程
      */

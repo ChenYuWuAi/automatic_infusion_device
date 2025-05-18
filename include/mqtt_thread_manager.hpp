@@ -27,6 +27,7 @@ public:
                       BatteryMonitor& batteryMonitor,
                       CameraManager& cameraManager,
                       PumpParams& pumpParams, 
+                        PumpState& pumpState,
                       std::atomic<bool>& paramsUpdatedFlag);
     
     /**
@@ -73,6 +74,7 @@ private:
     BatteryMonitor& batteryMonitor_;
     CameraManager& cameraManager_;
     PumpParams& pumpParams_;
+    PumpState& pumpState_;
     std::atomic<bool>& paramsUpdatedFlag_;
     
     // 电机驱动引用
