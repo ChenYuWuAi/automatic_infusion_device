@@ -15,14 +15,14 @@ double endHeight = 0.7;
 double startWidth = 0.0;
 double endWidth = 1.0;
 
-double canny_thr_0 = 60;
-double canny_thr_1 = 100;
+double canny_thr_0 = 40;
+double canny_thr_1 = 60;
 
 // 液位检测辅助函数（霍夫线检测）
 Vec4i detectLiquidLevelLine(const Mat &edgeImage)
 {
     vector<Vec4i> lines;
-    HoughLinesP(edgeImage, lines, 1, CV_PI / 180, 5, 10, 10);
+    HoughLinesP(edgeImage, lines, 1, CV_PI / 180, 5, 50, 10);
 
     int imgHeight = edgeImage.rows;
     int imgWidth = edgeImage.cols;
@@ -79,7 +79,10 @@ void setRoiParameters(double startH, double endH, double startW, double endW)
     endWidth = endW;
 }
 
-// 液位检测主函数
+#include <map>
+#include <cmath>
+
+// 液位检测主函数（多次检测+分桶+中位平均）
 double detectLiquidLevelPercentage(const Mat &inputImage, double totalVolume)
 {
     if (inputImage.empty())
@@ -113,40 +116,92 @@ double detectLiquidLevelPercentage(const Mat &inputImage, double totalVolume)
 
     Mat croppedImage = rotatedImage(roi);
 
-    Mat gray, edges;
-    cvtColor(croppedImage, gray, COLOR_BGR2GRAY);
-    Canny(gray, edges, canny_thr_0, canny_thr_1);
+    std::vector<double> percentages;
 
-    // 膨胀
-    Mat dilatedEdges;
-    Mat kernel = getStructuringElement(MORPH_RECT, Size(10, 8));
-    dilate(edges, dilatedEdges, kernel);
-
-    imwrite("edges.jpg", dilatedEdges);
-
-    Vec4i levelLine = detectLiquidLevelLine(dilatedEdges);
-
-    if (levelLine == Vec4i(0, 0, 0, 0))
+    for (int i = 0; i < 50; ++i)
     {
-        InfusionLogger::debug("未检测到液位线。");
+        Mat gray, edges;
+        cvtColor(croppedImage, gray, COLOR_BGR2GRAY);
+        Canny(gray, edges, canny_thr_0, canny_thr_1);
+
+        // 膨胀
+        Mat dilatedEdges;
+        Mat kernel = getStructuringElement(MORPH_RECT, Size(15, 8));
+        dilate(edges, dilatedEdges, kernel);
+
+        Vec4i levelLine = detectLiquidLevelLine(dilatedEdges);
+
+        if (levelLine == Vec4i(0, 0, 0, 0))
+        {
+            percentages.push_back(0.0);
+            continue;
+        }
+
+        int midY = (levelLine[1] + levelLine[3]) / 2;
+        int distanceToBottom = cropHeight - midY;
+        double raw_percentage = (1 - distanceToBottom / static_cast<double>(cropHeight)) * 100.0;
+        percentages.push_back(std::clamp(raw_percentage, 0.0, 100.0));
+    }
+
+    // 分桶，相差不超过5为一桶
+    std::vector<std::vector<double>> buckets;
+    std::vector<bool> used(percentages.size(), false);
+
+    for (size_t i = 0; i < percentages.size(); ++i)
+    {
+        if (used[i])
+            continue;
+        std::vector<double> bucket = {percentages[i]};
+        used[i] = true;
+        for (size_t j = i + 1; j < percentages.size(); ++j)
+        {
+            if (!used[j] && std::abs(percentages[j] - percentages[i]) <= 5.0)
+            {
+                bucket.push_back(percentages[j]);
+                used[j] = true;
+            }
+        }
+        buckets.push_back(bucket);
+    }
+
+    // 计算每个桶的平均值
+    std::vector<double> bucket_averages;
+    for (const auto &bucket : buckets)
+    {
+        if (!bucket.empty())
+        {
+            double sum = std::accumulate(bucket.begin(), bucket.end(), 0.0);
+            bucket_averages.push_back(sum / bucket.size());
+        }
+    }
+
+    if (bucket_averages.empty())
+    {
+        InfusionLogger::debug("未检测到有效液位线。");
         return -1.0;
     }
 
-    int midY = (levelLine[1] + levelLine[3]) / 2;
-    int distanceToBottom = cropHeight - midY;
-    // --- 极低频低通滤波和升高保持器 ---
-    static double filtered_percentage = 0.0;
-    static double last_percentage = 0.0;
-    static int hold_count = 0;
-    const double alpha = 0.02; // 低通滤波系数，越小越平滑
-    const int hold_limit = 10; // 升高保持次数
+    // 取平均后的中位数作为最终结果
+    std::sort(bucket_averages.begin(), bucket_averages.end());
+    double final_result;
+    size_t n = bucket_averages.size();
+    if (n % 2 == 1)
+        final_result = bucket_averages[n / 2];
+    else
+        final_result = (bucket_averages[n / 2 - 1] + bucket_averages[n / 2]) / 2.0;
 
-    double raw_percentage = (1 - distanceToBottom / static_cast<double>(cropHeight)) * 100.0;
+    double raw_percentage = final_result;
+    static double last_percentage = 0.0;
+    static double filtered_percentage = 0.0;
+    static int hold_count = 0;
+    static const int hold_limit = 5; // 保持次数限制
+    double alpha = 0.1;              // 低通滤波系数
 
     // 升高时直接更新，降低时需要保持
     if (raw_percentage > last_percentage)
     {
-        filtered_percentage = raw_percentage;
+        // 低通滤波缓慢上升
+        filtered_percentage = alpha * raw_percentage + (1 - alpha) * filtered_percentage;
         hold_count = 0;
     }
     else
@@ -163,22 +218,29 @@ double detectLiquidLevelPercentage(const Mat &inputImage, double totalVolume)
         }
     }
     last_percentage = filtered_percentage;
-    double percentage = filtered_percentage;
+    final_result = filtered_percentage;
 
-    //    double simulatedValue = simulation_function(mappedValue);
-    //    double percentage = (simulatedValue / totalVolume) * 100.0;
-
-    InfusionLogger::debug("液位线位置：" + to_string(midY) + ", 距离底部: " + to_string(distanceToBottom) +
-                          ", 占比: " + to_string(percentage) + "%");
-
-    // 保存检测图片
+    // 保存检测图片（最后一次）
     Mat outputImage = croppedImage.clone();
-    line(outputImage, Point(levelLine[0], levelLine[1]), Point(levelLine[2], levelLine[3]), Scalar(0, 255, 0), 2);
-    putText(outputImage, "Liquid Level", Point(levelLine[0], levelLine[1] - 10), FONT_HERSHEY_SIMPLEX, 0.5,
-            Scalar(0, 255, 0), 2);
-    putText(outputImage, "Percentage: " + to_string(percentage) + "%", Point(10, 30), FONT_HERSHEY_SIMPLEX, 0.5,
+    // 需要对croppedImage进行灰度和边缘处理，才能传给detectLiquidLevelLine
+    Mat gray, edges;
+    cvtColor(outputImage, gray, COLOR_BGR2GRAY);
+    Canny(gray, edges, canny_thr_0, canny_thr_1);
+    Mat dilatedEdges;
+    Mat kernel = getStructuringElement(MORPH_RECT, Size(10, 8));
+    dilate(edges, dilatedEdges, kernel);
+    Vec4i lastLine = detectLiquidLevelLine(dilatedEdges);
+    if (lastLine != Vec4i(0, 0, 0, 0))
+    {
+        line(outputImage, Point(lastLine[0], lastLine[1]), Point(lastLine[2], lastLine[3]), Scalar(0, 255, 0), 2);
+        putText(outputImage, "Liquid Level", Point(lastLine[0], lastLine[1] - 10), FONT_HERSHEY_SIMPLEX, 0.5,
+                Scalar(0, 255, 0), 2);
+    }
+    putText(outputImage, "Percentage: " + to_string(final_result) + "%", Point(10, 30), FONT_HERSHEY_SIMPLEX, 0.5,
             Scalar(255, 255, 255), 2);
     imwrite("output.jpg", outputImage);
 
-    return std::clamp(percentage, 0.0, 100.0);
+    InfusionLogger::debug("最终液位占比: " + to_string(final_result) + "%");
+
+    return std::clamp(final_result, 0.0, 100.0);
 }

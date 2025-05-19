@@ -289,8 +289,8 @@ void InfusionApp::playStartupSound()
     try
     {
         beep_stop_ = false;
-        std::thread songThread(play_song_thread, beep_fd_, buzzer_win10_plugin,
-                               sizeof(buzzer_win10_plugin) / sizeof(note_t), std::ref(beep_stop_));
+        std::thread songThread(play_song_thread, beep_fd_, buzzer_approach,
+                               sizeof(buzzer_approach) / sizeof(note_t), std::ref(beep_stop_));
         songThread.detach();
 
         InfusionLogger::debug("启动音效已播放");
