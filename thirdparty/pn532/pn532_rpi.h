@@ -27,7 +27,12 @@
 #ifndef PN532_RPI
 #define PN532_RPI
 
+
 #include "pn532.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int PN532_Reset(void);
 void PN532_Log(const char* log);
@@ -38,5 +43,9 @@ int PN532_UART_WriteData(uint8_t *data, uint16_t count);
 bool PN532_UART_WaitReady(uint32_t timeout);
 int PN532_UART_Wakeup(void);
 void PN532_UART_Close(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  /* PN532_RPI */

@@ -68,8 +68,12 @@ include_directories(
 add_subdirectory(thirdparty/json)
 
 # 搜索源文件
-file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c" "thirdparty/LCCV/src/*.cpp")
-list(APPEND SOURCES "src/motor_driver.cpp")
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c" "thirdparty/LCCV/src/*.cpp"
+    "thirdparty/pn532/pn532_rpi.c"
+    "thirdparty/pn532/pn532.c"
+    "thirdparty/pn532/serial.c"
+)
+
 
 # 从源文件中排除特定文件
 foreach(file IN LISTS SOURCES)
@@ -89,6 +93,7 @@ target_include_directories(auto-infusion PRIVATE
     nlohmann_json::nlohmann_json
     ${CMAKE_CURRENT_LIST_DIR}/thirdparty/LCCV/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/pn532
 )
 
 target_link_libraries(auto-infusion

@@ -1,6 +1,11 @@
 #include "infusion_state_machine.hpp"
 #include "logger.hpp"
 #include <chrono>
+#include <string.h>
+#include "pn532.h"
+#include "pn532_rpi.h"
+#include "buzzer_songs.h"
+#include "sound_effect_manager.hpp"
 
 // 状态名称定义
 const std::string STATE_IDLE = "IDLE";
@@ -21,6 +26,28 @@ const std::string ACTION_INFUSING = "ACTION_INFUSING";
 const std::string ACTION_PAUSED = "ACTION_PAUSED";
 const std::string ACTION_EMERGENCY_STOP = "ACTION_EMERGENCY_STOP";
 const std::string ACTION_ERROR = "ACTION_ERROR";
+
+// 支持多张允许的卡UID
+#include <vector>
+
+// 允许的卡UID列表（可根据需要添加更多UID）
+static const std::vector<std::vector<uint8_t>> ALLOWED_UIDS = {
+    {0xDA, 0xCA, 0xA8, 0x92},
+    {0x12, 0x34, 0x56, 0x78},
+    {0xAB, 0xCD, 0xEF, 0x01},
+    {0x75, 0xa4, 0xe5, 0x03},
+};
+
+// 判断UID是否在允许列表中
+static bool isUidAllowed(const uint8_t* uid, int uidLen) {
+    for (const auto& allowedUid : ALLOWED_UIDS) {
+        if (allowedUid.size() == static_cast<size_t>(uidLen) &&
+            memcmp(uid, allowedUid.data(), uidLen) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
 
 // 空闲状态动作
 class IdleAction : public openfsm::OpenFSMAction
@@ -118,15 +145,54 @@ public:
 
         InfusionLogger::info("已进入验证待处理状态，等待验证");
 
-        // 此处未来将添加二维码或NFC验证逻辑
+        if (g_soundEffectManager)
+            g_soundEffectManager->playSound(buzzer_win10_sudo,
+                                            sizeof(buzzer_win10_sudo) / sizeof(note_t));
     }
 
+    // 修改VerifyPendingAction中的playSound调用，改为使用SoundEffectManager
     void update(openfsm::OpenFSM &fsm) const override
     {
+        static auto last_error_time = std::chrono::steady_clock::now();
         auto *context = static_cast<InfusionStateMachine::FSMContext *>(fsm.getCustom());
         if (!context)
             return;
 
+        // NFC卡读取与验证
+        if (context->pn532Initialized)
+        {
+            uint8_t uidBuf[MIFARE_UID_MAX_LENGTH];
+            int uidLen = PN532_ReadPassiveTarget(&context->pn532, uidBuf, PN532_MIFARE_ISO14443A, 1000);
+            if (uidLen > 0)
+            {
+                if (isUidAllowed(uidBuf, uidLen))
+                {
+                    InfusionLogger::info("NFC验证成功，UID: {:02x}{:02x}{:02x}{:02x}", uidBuf[0], uidBuf[1], uidBuf[2], uidBuf[3]);
+                    context->pumpState->state.store(VERIFIED);
+                    // 播放验证成功音效
+                    if (g_soundEffectManager)
+                        g_soundEffectManager->playSound(buzzer_dji_startup,
+                                                        sizeof(buzzer_dji_startup) / sizeof(note_t));
+                    fsm.enterState(STATE_VERIFIED);
+                    return;
+                }
+                else
+                {
+
+                    auto now = std::chrono::steady_clock::now();
+                    if (now - last_error_time > std::chrono::seconds(5))
+                    {
+                        last_error_time = now;
+
+                        if (g_soundEffectManager)
+                            g_soundEffectManager->playSound(buzzer_error,
+                                                            sizeof(buzzer_error) / sizeof(note_t));
+                    }
+                    // 记录未授权UID
+                    InfusionLogger::warn("检测到未授权的UID: {:02x}{:02x}{:02x}{:02x}", uidBuf[0], uidBuf[1], uidBuf[2], uidBuf[3]);
+                }
+            }
+        }
         // 检查状态是否被外部更新
         PumpControlState currentState = context->pumpState->state.load();
         if (currentState != VERIFY_PENDING)
@@ -247,6 +313,10 @@ public:
         context->pumpState->current_speed.store(5.0);
 
         InfusionLogger::info("已进入准备状态，电机低速正向运行");
+
+        if (g_soundEffectManager)
+            g_soundEffectManager->playSound(buzzer_chunriying,
+                                            sizeof(buzzer_chunriying) / sizeof(note_t));
     }
 
     // 准备状态更新
@@ -439,6 +509,10 @@ public:
         context->pumpState->current_speed.store(0.0);
 
         InfusionLogger::info("已进入暂停状态，电机已停止");
+
+        if (g_soundEffectManager)
+            g_soundEffectManager->playSound(buzzer_autopilot_disconnect,
+                                            sizeof(buzzer_autopilot_disconnect) / sizeof(note_t));
     }
 
     // 暂停状态更新
@@ -515,6 +589,10 @@ public:
         context->pumpState->current_speed.store(5.0);
 
         InfusionLogger::warn("已进入紧急停止状态，电机低速反转");
+
+        if (g_soundEffectManager)
+            g_soundEffectManager->playSound(buzzer_autopilot_disconnect,
+                                            sizeof(buzzer_autopilot_disconnect) / sizeof(note_t));
     }
 
     // 紧急停止状态更新

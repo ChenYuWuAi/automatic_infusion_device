@@ -11,6 +11,7 @@
 #include "pump_common.hpp"
 #include "pump_database.hpp"
 #include "infusion_state_machine.hpp"
+#include "sound_effect_manager.hpp"
 
 /**
  * @brief 输液应用程序类，整合所有组件
@@ -68,7 +69,7 @@ public:
      * @param signum 信号编号
      */
     void handleSignal(int signum);
-    
+
 private:
     // MQTT配置
     const std::string SERVER_ADDRESS = "mqtt://tb.chenyuwuai.xyz:1883";
@@ -85,11 +86,7 @@ private:
     
     // 液位传感百分比
     std::atomic<double> liquid_level_percentage_{-1.0};
-    
-    // 蜂鸣器控制
-    bool beep_stop_{false};
-    int beep_fd_;
-    
+
     // 电机控制参数
     const char* GPIO_CHIPNAME = "gpiochip4";
     const int DIR_PIN = 27;
@@ -111,10 +108,10 @@ private:
     std::string pumpDataFile_;
     
     /**
-     * @brief 初始化蜂鸣器
+     * @brief 初始化声音管理器
      * @return 是否初始化成功
      */
-    bool initializeBeeper();
+    bool initializeSoundManager();
     
     /**
      * @brief 播放启动音效

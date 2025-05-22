@@ -51,10 +51,10 @@ void signal_handler(int signum)
         *gStop = true;
 }
 
-void play_song_thread(int fd, note_t notes_to_play[], int notes_count, bool &stop)
+void play_song_thread(int fd, const note_t notes_to_play[], int notes_count, bool &stop)
 {
     // 不在线程中设置信号处理器，而是由主线程设置
-    if (gStop != nullptr)
+    if (gStop != nullptr && gStop != &stop)
         *gStop = true;
     gStop = &stop;
     // 移除这里的信号处理器设置，避免与主线程信号处理冲突

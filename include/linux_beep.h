@@ -34,6 +34,6 @@ int getFD(const char *device);
  * @param notes_to_play 音符数组
  * @param stop 停止标志
  */
-void play_song_thread(int fd, note_t notes_to_play[], int notes_count, bool &stop);
+void play_song_thread(int fd, const note_t notes_to_play[], int notes_count, bool &stop);
 
 #endif // LINUX_BEEP_H

@@ -1,7 +1,9 @@
 #include "infusion_app.hpp"
 #include "logger.hpp"
-#include "linux_beep.h"
+#include "sound_effect_manager.hpp"
 #include "signal_handler.hpp"
+#include "pn532.h"
+#include "pn532_rpi.h"
 #include <thread>
 #include <functional>
 #include <memory>
@@ -41,10 +43,10 @@ bool InfusionApp::initialize()
             return false;
         }
 
-        // 初始化蜂鸣器
-        if (!initializeBeeper())
+        // 初始化声音管理器
+        if (!initializeSoundManager())
         {
-            InfusionLogger::warn("初始化蜂鸣器失败，继续执行...");
+            InfusionLogger::warn("初始化声音管理失败，继续执行...");
         }
 
         // 初始化电机驱动器 (必须在状态机之前)
@@ -197,8 +199,8 @@ void InfusionApp::stop()
 {
     InfusionLogger::info("正在关闭输液应用程序...");
 
-    // 停止蜂鸣器
-    beep_stop_ = true;
+    // 停止所有音效
+    g_soundEffectManager->stopAll();
 
     //    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
@@ -261,25 +263,26 @@ void InfusionApp::handleSignal(int signum)
     // 设置退出标志
     running_ = false;
 
-    // 停止蜂鸣器
-    beep_stop_ = true;
+    // 停止所有音效
+    g_soundEffectManager->stopAll();
 }
 
-bool InfusionApp::initializeBeeper()
+// 初始化声音管理器
+bool InfusionApp::initializeSoundManager()
 {
     try
     {
-        beep_fd_ = getFD(BEEP_DEVICE);
-        if (beep_fd_ < 0)
+        g_soundEffectManager = std::make_shared<SoundEffectManager>();
+        if (!g_soundEffectManager->initialize(BEEP_DEVICE))
         {
-            InfusionLogger::error("无法打开蜂鸣器设备");
+            InfusionLogger::error("初始化声音管理器失败!");
             return false;
         }
         return true;
     }
     catch (const std::exception &e)
     {
-        InfusionLogger::error("初始化蜂鸣器时出错: {}", e.what());
+        InfusionLogger::error("初始化声音管理时出错: {}", e.what());
         return false;
     }
 }
@@ -288,11 +291,7 @@ void InfusionApp::playStartupSound()
 {
     try
     {
-        beep_stop_ = false;
-        std::thread songThread(play_song_thread, beep_fd_, buzzer_approach,
-                               sizeof(buzzer_approach) / sizeof(note_t), std::ref(beep_stop_));
-        songThread.detach();
-
+        g_soundEffectManager->playSound(buzzer_win10_plug_in, sizeof(buzzer_win10_plug_in) / sizeof(note_t));
         InfusionLogger::debug("启动音效已播放");
     }
     catch (const std::exception &e)
@@ -305,16 +304,12 @@ void InfusionApp::playShutdownSound()
 {
     try
     {
-        beep_stop_ = false;
-        std::thread songThread(play_song_thread, beep_fd_, buzzer_win10_remove,
-                               sizeof(buzzer_win10_remove) / sizeof(note_t), std::ref(beep_stop_));
-        songThread.detach();
-
+        g_soundEffectManager->playSound(buzzer_win10_remove, sizeof(buzzer_win10_remove) / sizeof(note_t));
         InfusionLogger::debug("停止音效已播放");
     }
     catch (const std::exception &e)
     {
-        InfusionLogger::error("播放启动音效时出错: {}", e.what());
+        InfusionLogger::error("播放停止音效时出错: {}", e.what());
     }
 }
 
@@ -371,7 +366,28 @@ bool InfusionApp::initializeStateMachine()
         // 设置全局状态机指针（用于RPC调用）
         g_stateMachine = stateMachine_.get();
 
+        InfusionLogger::info("正在初始化PN532 NFC模块...");
+
+        // 初始化PN532 NFC模块
+        PN532_UART_Init(&g_stateMachine->fsmContext_.pn532);
+        {
+            uint8_t buff[255];
+            if (PN532_GetFirmwareVersion(&g_stateMachine->fsmContext_.pn532, buff) == PN532_STATUS_OK)
+            {
+                PN532_SamConfiguration(&g_stateMachine->fsmContext_.pn532);
+                g_stateMachine->fsmContext_.pn532Initialized = true;
+                InfusionLogger::info("PN532模块初始化成功，固件版本: {}.{}", buff[1], buff[2]);
+            }
+            else
+            {
+                InfusionLogger::warn("PN532模块初始化失败");
+                // 退出程序
+                return false;
+            }
+        }
+
         InfusionLogger::info("状态机初始化成功");
+
         return true;
     }
     catch (const std::exception &e)
